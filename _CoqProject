@@ -1,0 +1,44 @@
+-Q iris_heap_lang iris.heap_lang
+-Q theories complete_iris
+
+-docroot complete_iris
+
+-arg "-w -redundant-canonical-projection -w -notation-incompatible-prefix -w -notation-both-format-and-spaces"
+
+iris_heap_lang/locations.v
+iris_heap_lang/lang.v
+iris_heap_lang/class_instances.v
+iris_heap_lang/pretty.v
+iris_heap_lang/metatheory.v
+iris_heap_lang/tactics.v
+iris_heap_lang/primitive_laws.v
+iris_heap_lang/derived_laws.v
+iris_heap_lang/notation.v
+iris_heap_lang/proofmode.v
+iris_heap_lang/adequacy.v
+iris_heap_lang/total_adequacy.v
+iris_heap_lang/proph_erasure.v
+iris_heap_lang/lib/spawn.v
+iris_heap_lang/lib/par.v
+iris_heap_lang/lib/assert.v
+iris_heap_lang/lib/lock.v
+iris_heap_lang/lib/rw_lock.v
+iris_heap_lang/lib/spin_lock.v
+iris_heap_lang/lib/ticket_lock.v
+iris_heap_lang/lib/rw_spin_lock.v
+iris_heap_lang/lib/nondet_bool.v
+iris_heap_lang/lib/lazy_coin.v
+iris_heap_lang/lib/clairvoyant_coin.v
+iris_heap_lang/lib/counter.v
+iris_heap_lang/lib/atomic_heap.v
+iris_heap_lang/lib/increment.v
+iris_heap_lang/lib/diverge.v
+iris_heap_lang/lib/arith.v
+iris_heap_lang/lib/array.v
+iris_heap_lang/lib/logatom_lock.v
+
+theories/base_logic/ghost_bag.v
+
+theories/program_logic/adequacy.v
+theories/program_logic/state.v
+theories/program_logic/weakestpre.v

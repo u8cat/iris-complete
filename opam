@@ -1,0 +1,23 @@
+opam-version: "2.0"
+maintainer: "Zichen Zhang <zichenzhang@nyu.edu>"
+authors: [ "Zichen Zhang <zichenzhang@nyu.edu>" ]
+license: "BSD-2-Clause"
+homepage: "none"
+bug-reports: "https://github.com/u8cat/iris-complete/issues"
+dev-repo: "https://github.com/u8cat/iris-complete.git"
+version: "dev"
+
+name: "rocq-complete-iris"
+synopsis: "Completeness of the Iris separation logic framework"
+
+depends: [
+  "coq" { (= "9.0.1") }
+  "coq-iris" { (= "4.4.0") }
+  "coq-stdpp" { (= "1.12.0") }
+]
+conflicts: ["coq-iris-heap-lang"]
+
+build: [make "-j%{jobs}%"]
+install: [make "install"]
+remove: [ "sh" "-c" "rm -rf '%{lib}%/coq/user-contrib/complete-iris' '%{lib}%/coq/user-contrib/iris/heaplang' " ]
+
