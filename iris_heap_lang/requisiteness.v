@@ -1,8 +1,8 @@
-(* state.v *)
-
 From iris.proofmode Require Import base tactics.
+From complete_iris.program_logic Require Export requisiteness.
 From iris.heap_lang Require Import primitive_laws.
 
+Module colang.
 Global Instance state_empty : Empty state :=
   {| heap := ∅; used_proph_id := ∅ |}.
 
@@ -665,16 +665,13 @@ Section substate.
 End substate.
 
 Section state.
-  Context `{!heapGS Σ}.
+  Context `{!heapGS_gen hlc Σ}.
   Implicit Types (e : expr) (σ : state) (κ κs : list observation) (efs : list expr).
 
   (* The ownership of a fragment of the program state. *)
   Definition own_state (σ : state) (ns : nat) (κs : list observation) (nt : nat) : iProp Σ :=
     ([∗ map] l↦ov ∈ σ.(heap), gen_heap.pointsto l (DfracOwn 1) ov) ∗
     ([∗ set] p ∈ σ.(used_proph_id), proph p (proph_list_resolves κs p)).
-
-  Definition stateful_pure (P : state → Prop) : iProp Σ :=
-    ∃ σ ns κs nt, own_state σ ns κs nt ∗ ⌜P σ⌝.
 
   Lemma own_state_agree σ ns κs nt σ' ns' κs' nt' :
     state_interp σ ns κs nt -∗ own_state σ' ns' κs' nt' -∗ ⌜σ' ⊆ σ⌝.
@@ -867,7 +864,7 @@ Section state.
 
   Lemma state_update e e' σ σ' σ_ext ns ns' κ κs κ' nt nt' efs :
     σ ## σ_ext → σ' ## σ_ext → prim_step e σ κ e' σ' efs →
-    state_interp (σ∪σ_ext) ns (κ++κs) nt -∗ own_state σ ns' κ' nt' ==∗
+    state_interp (σ∪σ_ext) ns (κ++κs) nt -∗ own_state σ ns' κ' nt' ={∅}=∗
     state_interp (σ'∪σ_ext) (S ns) κs (length efs + nt) ∗ own_state σ' (S ns) κs (length efs + nt).
   Proof.
     iIntros (Hdisj1 Hdisj2 Hprim_step) "H● H◯".
@@ -981,7 +978,16 @@ Section state.
       rewrite /= decide_False; [done|set_solver].
   Qed.
 End state.
+End colang.
 
-Global Arguments stateful_pure {_ _} _%_stdpp_scope.
-
-Notation "⌞ P ⌟" := (stateful_pure P) (format "⌞ P ⌟") : bi_scope.
+Global Program Instance heaplang_complete `{!heapGS_gen hlc Σ} : coirisG_gen hlc heap_lang Σ := {
+  substate := colang.substate;
+  state_disjoint := colang.state_disjoint;
+  state_union := colang.state_union;
+  own_state := colang.own_state;
+  reducible_mono := colang.reducible_mono;
+  prim_step_subset := colang.prim_step_subset;
+  own_state_agree := colang.own_state_agree;
+  state_update := colang.state_update;
+}.
+Solve Obligations with auto.

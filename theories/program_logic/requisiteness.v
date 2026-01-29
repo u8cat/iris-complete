@@ -1,33 +1,70 @@
-(* weakestpre.v *)
-
 From iris.proofmode Require Import base tactics.
 From iris.base_logic Require Import invariants.
 From complete_iris.base_logic Require Import ghost_bag.
 From iris.program_logic Require Export lifting.
-From complete_iris.program_logic Require Export state adequacy.
-From iris.heap_lang Require Import primitive_laws notation.
+From complete_iris.program_logic Require Export adequacy.
 
-Class requisiteG Σ := RequisiteG {
-  #[local] requisiteG_bag :: ghost_bagG Σ expr;
+Class coirisG_gen (hlc : has_lc) (Λ : language) (Σ: gFunctors) `{!irisGS_gen hlc Λ Σ} := CoirisG {
+  substate : relation (state Λ);
+  state_disjoint : relation (state Λ);
+  state_union : state Λ → state Λ → state Λ;
+
+  own_state : state Λ → nat → list (observation Λ) → nat → iProp Σ;
+  #[local] own_state_timeless σ ns κ nt :: Timeless (own_state σ ns κ nt);
+
+  fork_post_trivial v : ⊢ fork_post v;
+
+  reducible_mono e σ σ':
+    substate σ σ' → reducible e σ → reducible e σ';
+
+  prim_step_subset e σ κ e' σ' efs σl :
+    substate σl σ → reducible e σl → prim_step e σ κ e' σ' efs →
+    ∃ σ_ext σl', state_disjoint σl σ_ext ∧ state_disjoint σl' σ_ext ∧ σ = state_union σl σ_ext ∧ σ' = state_union σl' σ_ext ∧ prim_step e σl κ e' σl' efs;
+
+  own_state_agree σ ns κs nt σ' ns' κs' nt' :
+    state_interp σ ns κs nt -∗ own_state σ' ns' κs' nt' -∗ ⌜substate σ' σ⌝;
+
+  state_update e e' σ σ' σ_ext ns ns' κ κs κ' nt nt' efs :
+    state_disjoint σ σ_ext → state_disjoint σ' σ_ext → prim_step e σ κ e' σ' efs →
+    state_interp (state_union σ σ_ext) ns (κ++κs) nt -∗ own_state σ ns' κ' nt' ={∅}=∗
+    state_interp (state_union σ' σ_ext) (S ns) κs (length efs + nt) ∗ own_state σ' (S ns) κs (length efs + nt);
+}.
+Global Arguments CoirisG {hlc Λ Σ _}.
+
+Notation coirisG Λ Σ := (coirisG_gen HasLc Λ Σ).
+
+Definition stateful_pure `{!irisGS_gen hlc Λ Σ, !coirisG_gen hlc Λ Σ} (P : state Λ → Prop) : iProp Σ :=
+  ∃ σ ns κs nt, own_state σ ns κs nt ∗ ⌜P σ⌝.
+Global Arguments stateful_pure {_ _ _ _ _} _%_stdpp_scope.
+Notation "⌞ P ⌟" := (stateful_pure P) (format "⌞ P ⌟") : bi_scope.
+
+(* TODO: avoid Countable. *)
+Class requisiteG Λ Σ `{!EqDecision (expr Λ), !Countable (expr Λ)} := RequisiteG {
+  #[local] requisiteG_bag :: ghost_bagG Σ (expr Λ);
 }.
 
-Definition requisiteΣ := #[ghost_bagΣ expr].
+Definition requisiteΣ `{Countable (expr Λ)} := #[ghost_bagΣ (expr Λ)].
 
-Global Instance subG_requisiteG Σ : subG requisiteΣ Σ → requisiteG Σ.
+Global Instance subG_requisiteG `{Countable (expr Λ)} Σ :
+  subG requisiteΣ Σ → requisiteG Λ Σ.
 Proof. solve_inG. Qed.
 
-(* TODO: generalize over stuckness *)
-Section weakestpre.
-  Context `{!heapGS Σ, !requisiteG Σ}.
-  Implicit Types (e : expr) (v : val) (σ : state) (t : list expr) (Q : val → state → Prop).
+Section requisiteness.
+  Context `{!irisGS_gen hlc Λ Σ, !coirisG_gen hlc Λ Σ}.
+  Context `{!EqDecision (expr Λ), !Countable (expr Λ), !requisiteG Λ Σ}.
+
+  Implicit Types (e : expr Λ) (v : val Λ) (σ : state Λ) (t : list (expr Λ)) (Q : (val Λ) → (state Λ) → Prop).
   Notation safe_tp s t1 σ1 := (∀ t2 σ2 e2, s = NotStuck →
     rtc erased_step (t1, σ1) (t2, σ2) → e2 ∈ t2 → not_stuck e2 σ2).
+
+  Local Instance into_val_val v : IntoVal (of_val v) v.
+  Proof. done. Qed.
 
   Definition safeInv γb : iProp Σ :=
     ∃ t2 σl nsl κsl ntl, own_state σl nsl κsl ntl ∗ ghost_bag_auth γb (list_to_set_disj t2) ∗
       ⌜safe_tp NotStuck t2 σl ⌝.
 
-  Local Lemma wptp_safe_inv t γb :
+  Local Lemma wptp_weak_requisiteness_inv t γb :
     inv nroot (safeInv γb) ⊢
     [∗ list] e ∈ t, ghost_bag_frag γb e -∗ WP e {{ _, True }}.
   Proof.
@@ -42,7 +79,14 @@ Section weakestpre.
 
     - iApply wp_lift_step_fupd; first done.
       iIntros (σ1 ns κ κs nt) "Hstate_interp".
-      iInv nroot as (t1 σl1 nsl κl ntl) ">(Hown_state & Ht● & %Hsafe)" "Hclose1".
+      (* TODO: is there a way to provide an IntoExist instance under ◇ modality? *)
+      iInv nroot as "H" "Hclose1".
+      iDestruct (bi.later_exist_except_0 with "H") as ">[%t1 H]".
+      iDestruct (bi.later_exist_except_0 with "H") as ">[%σl1 H]".
+      iDestruct (bi.later_exist_except_0 with "H") as ">[%nsl H]".
+      iDestruct (bi.later_exist_except_0 with "H") as ">[%κl H]".
+      iDestruct (bi.later_exist_except_0 with "H") as ">[%ntl H]".
+      iDestruct "H" as ">(Hown_state & Ht● & %Hsafe)".
       iApply fupd_mask_intro; first set_solver. iIntros "Hclose2".
       iDestruct (own_state_agree with "Hstate_interp Hown_state") as %Hσlσ.
       iDestruct (ghost_bag_elem_of with "Ht● He◯") as %Hint1%elem_of_list_to_set_disj.
@@ -76,7 +120,7 @@ Section weakestpre.
       { destruct (elem_of_list_split t1 e Hint1) as (t1a & t1b & ->).
         iEval (rewrite Permutation_app_comm -app_comm_cons list_to_set_disj_cons) in "Ht●".
         replace (({[+ e +]} ⊎ list_to_set_disj (t1b ++ t1a)) ∖ {[+ e +]})
-          with (list_to_set_disj (t1b ++ t1a) : gmultiset expr)
+          with (list_to_set_disj (t1b ++ t1a) : gmultiset (expr Λ))
           by multiset_solver.
         iEval (rewrite -list_to_set_disj_cons app_comm_cons Permutation_app_comm) in "Ht●".
         iEval (rewrite comm -list_to_set_disj_app) in "Ht●".
@@ -92,12 +136,14 @@ Section weakestpre.
       iModIntro. simpl.
       iCombine "He◯ Hefs◯" as "Ht◯".
       rewrite -(big_sepL_cons (λ _ e, ghost_bag_frag γb e)).
+      rewrite -(big_sepL_mono (λ _ e, WP e {{_, True}})%I ((λ _ e, WP e {{fork_post}})%I)); last first.
+      { intros ???. apply wp_mono =>?. iIntros "_". iApply fork_post_trivial. }
       rewrite -(big_sepL_cons (λ _ e, WP e {{_, True}})%I).
       iApply (big_sepL_wand with "Ht◯").
       iApply "IH".
   Qed.
 
-  Lemma wptp_safe t P :
+  Lemma wptp_weak_requisiteness t P :
     (∀ σ, P σ → safe_tp NotStuck t σ) →
     ⌞P⌟ ⊢ |={⊤}=> [∗ list] e ∈ t, WP e {{ _, True }}.
   Proof.
@@ -114,10 +160,10 @@ Section weakestpre.
     iMod (inv_alloc nroot ⊤ (safeInv γb) with "[$Hown_state $Ht● //]") as "#Hinv".
     iModIntro.
     iApply (big_sepL_wand with "Ht◯").
-    by iApply wptp_safe_inv.
+    by iApply wptp_weak_requisiteness_inv.
   Qed.
 
-  Theorem wp_requisiteness_nofork e (P : state → Prop) (Q : val → state → Prop) :
+  Lemma wp_requisiteness_nofork e P Q :
     (∀ σ, P σ → adequate_nofork NotStuck e σ Q) →
     ⌞P⌟ ⊢ WP e {{ v, ⌞Q v⌟ }}.
   Proof.
@@ -152,6 +198,7 @@ Section weakestpre.
       edestruct (prim_step_subset) as (σ_ext & σl2 & Hσl1_dis & Hσl2_dis & Heq1 & Heq2 & Hprim_step_l).
       { exact Hσlσ. } { exact He_red. } { exact Hprim_step. }
       subst σ1 σ2.
+      iApply (fupd_mask_mono ∅); first set_solver.
       iMod (state_update with "Hstate_interp Hσl") as "[$ Hσl]".
       { exact Hσl1_dis. } { exact Hσl2_dis. } { exact Hprim_step_l. }
       iModIntro.
@@ -171,7 +218,7 @@ Section weakestpre.
       assumption.
   Qed.
 
-  Corollary hoare_requisiteness_nofork e (P : state → Prop) (Q : val → state → Prop) :
+  Lemma hoare_requisiteness_nofork e P Q :
     to_val e = None → (∀ σ, P σ → adequate_nofork NotStuck e σ Q) →
     ⊢ {{{ ⌞P⌟ }}} e {{{ v, RET v; ⌞Q v⌟ }}}.
   Proof.
@@ -197,6 +244,7 @@ Section weakestpre.
     edestruct (prim_step_subset) as (σ_ext & σl2 & Hσl1_dis & Hσl2_dis & Heq1 & Heq2 & Hprim_step_l).
     { exact Hσlσ. } { exact He_red. } { exact Hprim_step. }
     subst σ1 σ2.
+    iApply (fupd_mask_mono ∅); first set_solver.
     iMod (state_update with "Hstate_interp Hσl") as "[$ Hσl]".
     { exact Hσl1_dis. } { exact Hσl2_dis. } { exact Hprim_step_l. }
     iModIntro.
@@ -219,8 +267,8 @@ Section weakestpre.
   Qed.
 
   (* False *)
-  Lemma wptp_requisiteness e t (P : state → Prop) (Q : val → state → Prop) :
+  Lemma wptp_requisiteness e t P Q :
     (∀ σ, P σ → adequate_tp NotStuck (e::t) σ Q) →
     ⌞P⌟ ⊢ |={⊤}=> WP e {{ v, ⌞Q v⌟ }} ∗ [∗ list] e ∈ t, WP e {{ _, True }}.
   Abort.
-End weakestpre.
+End requisiteness.

@@ -18,6 +18,7 @@ iris_heap_lang/proofmode.v
 iris_heap_lang/adequacy.v
 iris_heap_lang/total_adequacy.v
 iris_heap_lang/proph_erasure.v
+iris_heap_lang/requisiteness.v
 iris_heap_lang/lib/spawn.v
 iris_heap_lang/lib/par.v
 iris_heap_lang/lib/assert.v
@@ -40,5 +41,4 @@ iris_heap_lang/lib/logatom_lock.v
 theories/base_logic/ghost_bag.v
 
 theories/program_logic/adequacy.v
-theories/program_logic/state.v
-theories/program_logic/weakestpre.v
+theories/program_logic/requisiteness.v
