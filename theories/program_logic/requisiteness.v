@@ -1,4 +1,4 @@
-From iris.proofmode Require Import base tactics.
+From iris.proofmode Require Import base ltac_tactics.
 From iris.base_logic Require Import ghost_map invariants.
 From iris.program_logic Require Export lifting.
 From complete_iris.program_logic Require Export adequacy.
@@ -162,7 +162,7 @@ Section requisiteness.
           destruct (lemma 0 Hint1) as [_ H].
           replace (tid-0) with (tid) in H by lia.
           done. }
-        destruct (elem_of_list_split_length t1 tid e Hlookupt1) as (t1a & t1b & -> & ->).
+        destruct (list_elem_of_split_length t1 tid e Hlookupt1) as (t1a & t1b & -> & ->).
 
         (* update [e] to [e2] *)
         iEval (rewrite [x in seq 0 x]length_app seq_app) in "Ht●".
@@ -174,7 +174,7 @@ Section requisiteness.
           rewrite list_to_set_seq elem_of_set_seq.
           lia. }
         iEval (rewrite list_to_map_app list_to_map_cons -(insert_union_r _ _ (length t1a) e) //) in "Ht●".
-        iEval (rewrite insert_insert) in "Ht●".
+        iEval (rewrite insert_insert_eq) in "Ht●".
         iEval (rewrite (insert_union_r _ _ (length t1a) e2) //) in "Ht●".
         iEval (rewrite -list_to_map_cons -list_to_map_app) in "Ht●".
         iEval (rewrite -zip_cons cons_seq -(length_cons e2)) in "Ht●".

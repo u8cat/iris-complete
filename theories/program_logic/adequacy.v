@@ -53,16 +53,16 @@ Section steps.
   Proof.
     intros Hlen Hsteps.
     remember (t1,σ1) as cfg1. remember (t2 ++ t3, σ2) as cfg2.
-    revert cfg1 cfg2 Hsteps efs t1 σ1 t2 t3 σ2 Heqcfg1 Heqcfg2 Hlen.
-    apply (rtc_ind_r_weak (λ cfg1 cfg2, ∀ efs t1 σ1 t2 t3 σ2,
+    revert cfg2 Hsteps efs t1 σ1 t2 t3 σ2 Heqcfg1 Heqcfg2 Hlen.
+    apply (rtc_ind_r (λ cfg2, ∀ efs t1 σ1 t2 t3 σ2,
       cfg1 = (t1,σ1) → cfg2 = (t2++t3,σ2) → length t1 = length t2 →
       rtc erased_step (t1++efs,σ1) (t2++efs++t3,σ2))).
-    - intros ? efs t1 σ1 t2 t3 σ2 -> Heq Hlen.
+    - intros efs t1 σ1 t2 t3 σ2 -> Heq Hlen.
       simplify_eq.
       rewrite length_app in Hlen.
       assert (t3=[]) as ->. { apply nil_length_inv. lia. }
       rewrite !right_id //.
-    - intros cfg1 [t_mid σ_mid] cfg3 Hsteps Hstep Hind.
+    - intros [t_mid σ_mid] cfg3 Hsteps Hstep Hind.
       intros efs t1 σ1 t2 t3 σ2 -> -> Hlen.
       pose proof (erased_steps_grow t1 σ1 t_mid σ_mid Hsteps) as Hlen_le.
       rewrite -(take_drop (length t1) t_mid) in Hsteps.

@@ -4,18 +4,20 @@ authors: [ "Zichen Zhang <zichenzhang@nyu.edu>" ]
 license: "BSD-2-Clause"
 homepage: "none"
 bug-reports: "https://github.com/u8cat/iris-complete/issues"
-dev-repo: "https://github.com/u8cat/iris-complete.git"
+dev-repo: "git+https://github.com/u8cat/iris-complete.git"
 version: "dev"
 
 name: "rocq-complete-iris"
 synopsis: "Completeness of the Iris separation logic framework"
 
 depends: [
-  "coq" { (= "9.0.1") }
-  "coq-iris" { (= "4.4.0") }
-  "coq-stdpp" { (= "1.12.0") }
+  "rocq-core" { (= "9.1.0") }
+  "rocq-stdlib"
+  "rocq-iris" { (= "dev.2026-01-29.0.6cdf1efe") }
+  "rocq-stdpp"
+  "rocq-iris-heap-lang"
 ]
-conflicts: ["coq-iris-heap-lang"]
+conflicts: []
 
 build: [make "-j%{jobs}%"]
 install: [make "install"]

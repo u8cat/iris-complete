@@ -6,9 +6,9 @@ This Rocq development shows the completeness of the [Iris](https://iris-project.
 
 The project is known to compile with
 
-- [Rocq](https://rocq-prover.org/) 9.0.1
-- [std++](https://gitlab.mpi-sws.org/iris/stdpp) 1.12.0
-- [Iris](https://gitlab.mpi-sws.org/iris/iris/) 4.4.0
+- [Rocq](https://rocq-prover.org/) 9.1.0
+- [std++](https://gitlab.mpi-sws.org/iris/stdpp) dev.2026-01-28.0.6f3f2617
+- [Iris](https://gitlab.mpi-sws.org/iris/iris/) dev.2026-01-29.0.6cdf1efe
 
 The recommended way to install the dependencies is through [opam](https://opam.ocaml.org/doc/Install.html).
 
@@ -21,6 +21,7 @@ opam switch link iris-complete .
 3. Add the Rocq and Iris opam repositories.
 ```
 opam repo add rocq-released https://rocq-prover.github.io/opam/released/
+opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
 opam update
 ```
 4. Install the right version of the dependencies as specified in the opam file.

@@ -1,4 +1,4 @@
-From iris.proofmode Require Import base tactics.
+From iris.proofmode Require Import base ltac_tactics.
 From complete_iris.program_logic Require Export requisiteness.
 From iris.heap_lang Require Import primitive_laws.
 
@@ -490,7 +490,7 @@ Section substate.
     apply map_eq => l'.
     destruct HisSome as [? Hσl_l].
     destruct (decide (l = l')) as [<-|Hne].
-    - rewrite !lookup_difference !lookup_insert Hσl_l //.
+    - rewrite !lookup_difference !lookup_insert_eq Hσl_l //.
     - rewrite !lookup_difference !lookup_insert_ne //.
       destruct (heap σl !! l') eqn:?; first by eapply lookup_weaken.
       destruct (heap σ !! l'); done.
@@ -701,7 +701,7 @@ Section state.
       + rewrite !big_opL_cons.
         iDestruct "Hproph◯" as "[Hp Hproph◯]".
         iSplit.
-        * iDestruct (proph_map_agree with "Hproph● Hp") as "[$ _]".
+        * iDestruct (proph_map_agree with "[$Hproph● $Hp]") as "[$ _]".
         * iApply ("IHL" with "Hproph● Hproph◯").
   Qed.
 
@@ -721,7 +721,7 @@ Section state.
     - rewrite !big_opL_nil. iFrame.
     - rewrite !big_opL_cons.
       iDestruct "Hproph◯" as "[Hp Hproph◯]".
-      iDestruct (proph_map_agree with "Hproph● Hp") as %[_ ->].
+      iDestruct (proph_map_agree with "[$Hproph● $Hp]") as %[_ ->].
       iFrame "Hp".
       iApply ("IHL" with "Hproph● Hproph◯").
   Qed.
