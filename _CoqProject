@@ -38,7 +38,5 @@ iris_heap_lang/lib/arith.v
 iris_heap_lang/lib/array.v
 iris_heap_lang/lib/logatom_lock.v
 
-theories/base_logic/ghost_bag.v
-
 theories/program_logic/adequacy.v
 theories/program_logic/requisiteness.v

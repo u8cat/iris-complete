@@ -1,6 +1,5 @@
 From iris.proofmode Require Import base tactics.
-From iris.base_logic Require Import invariants.
-From complete_iris.base_logic Require Import ghost_bag.
+From iris.base_logic Require Import ghost_map invariants.
 From iris.program_logic Require Export lifting.
 From complete_iris.program_logic Require Export adequacy.
 
@@ -38,20 +37,18 @@ Definition stateful_pure `{!irisGS_gen hlc Λ Σ, !coirisG_gen hlc Λ Σ} (P : s
 Global Arguments stateful_pure {_ _ _ _ _} _%_stdpp_scope.
 Notation "⌞ P ⌟" := (stateful_pure P) (format "⌞ P ⌟") : bi_scope.
 
-(* TODO: avoid Countable. *)
-Class requisiteG Λ Σ `{!EqDecision (expr Λ), !Countable (expr Λ)} := RequisiteG {
-  #[local] requisiteG_bag :: ghost_bagG Σ (expr Λ);
+Class requisiteG Λ Σ := RequisiteG {
+  #[local] requisiteG_bag :: ghost_mapG Σ nat (expr Λ);
 }.
 
-Definition requisiteΣ `{Countable (expr Λ)} := #[ghost_bagΣ (expr Λ)].
+Definition requisiteΣ Λ := #[ghost_mapΣ nat (expr Λ)].
 
-Global Instance subG_requisiteG `{Countable (expr Λ)} Σ :
-  subG requisiteΣ Σ → requisiteG Λ Σ.
+Global Instance subG_requisiteG Λ Σ :
+  subG (requisiteΣ Λ) Σ → requisiteG Λ Σ.
 Proof. solve_inG. Qed.
 
 Section requisiteness.
-  Context `{!irisGS_gen hlc Λ Σ, !coirisG_gen hlc Λ Σ}.
-  Context `{!EqDecision (expr Λ), !Countable (expr Λ), !requisiteG Λ Σ}.
+  Context `{!irisGS_gen hlc Λ Σ, !coirisG_gen hlc Λ Σ, !requisiteG Λ Σ}.
 
   Implicit Types (e : expr Λ) (v : val Λ) (σ : state Λ) (t : list (expr Λ)) (Q : (val Λ) → (state Λ) → Prop).
   Notation safe_tp s t1 σ1 := (∀ t2 σ2 e2, s = NotStuck →
@@ -61,17 +58,33 @@ Section requisiteness.
   Proof. done. Qed.
 
   Definition safeInv γb : iProp Σ :=
-    ∃ t2 σl nsl κsl ntl, own_state σl nsl κsl ntl ∗ ghost_bag_auth γb (list_to_set_disj t2) ∗
+    ∃ t2 σl nsl κsl ntl, own_state σl nsl κsl ntl ∗
+      ghost_map_auth γb 1 (list_to_map (zip (seq 0 (length t2)) t2)) ∗
       ⌜safe_tp NotStuck t2 σl ⌝.
+
+  (* TOOD: move to stdpp *)
+  Local Lemma zip_cons {A B} (a : A) (l : list A) (b : B) (k : list B) :
+    zip (a::l) (b::k) = (a,b)::zip l k.
+  Proof. done. Qed.
+  Local Lemma zip_app {A B} (l1 l2 : list A) (k1 k2 : list B) :
+    length l1 = length k1 → zip (l1++l2) (k1++k2) = zip l1 k1 ++ zip l2 k2.
+  Proof.
+    intros Hlen.
+    pose (f:= (λ (a : A)(b : B), (a,b))).
+    assert (Hidf: ∀ (l : list A) (k : list B), zip l k = uncurry f <$> zip l k).
+    { intros l k. apply list_eq => i.
+      rewrite list_lookup_fmap. by destruct (zip l k !! i) as [[??]|]. }
+    rewrite {1}Hidf -zip_with_zip zip_with_app //.
+  Qed.
 
   Local Lemma wptp_weak_requisiteness_inv t γb :
     inv nroot (safeInv γb) ⊢
-    [∗ list] e ∈ t, ghost_bag_frag γb e -∗ WP e {{ _, True }}.
+    [∗ list] e ∈ t, (∃ i, i ↪[γb] e) -∗ WP e {{ _, True }}.
   Proof.
     iIntros "#Hinv".
     iLöb as "IH" forall (t).
     iApply (big_sepL_impl (λ _ _, emp)%I); first done.
-    iIntros "!#" (tid e _) "_ He◯".
+    iIntros "!#" (? e _) "_ [%tid He◯]".
     destruct (to_val e) as [v|] eqn:He.
 
     - rewrite -(of_to_val e v); last apply He.
@@ -89,26 +102,43 @@ Section requisiteness.
       iDestruct "H" as ">(Hown_state & Ht● & %Hsafe)".
       iApply fupd_mask_intro; first set_solver. iIntros "Hclose2".
       iDestruct (own_state_agree with "Hstate_interp Hown_state") as %Hσlσ.
-      iDestruct (ghost_bag_elem_of with "Ht● He◯") as %Hint1%elem_of_list_to_set_disj.
+      iDestruct (ghost_map_lookup with "Ht● He◯") as %Hint1%elem_of_list_to_map_2.
 
       assert (He_red : reducible e σl1). {
         specialize (Hsafe t1 σl1 e).
         destruct Hsafe as [Hfalse|]; try done.
-        rewrite /= He in Hfalse. by inversion Hfalse.
+        - by eapply elem_of_zip_r.
+        - rewrite /= He in Hfalse. by inversion Hfalse.
       }
 
       iSplit; first by iPureIntro; eapply reducible_mono.
       iIntros (e2 σ2 efs Hprim_step) "_ !>!>".
 
       (* update ghost resources *)
-      iMod (ghost_bag_update _ _ e2 with "Ht● He◯") as "[Ht● He◯]".
-      iMod (ghost_bag_insert_big (list_to_set_disj efs) with "Ht●") as "[Ht● Hefs◯]".
-      iAssert ([∗ list] k ∈ efs, ghost_bag_frag γb k)%I with "[Hefs◯]" as "Hefs◯".
+      iMod (ghost_map_update e2 with "Ht● He◯") as "[Ht● He◯]".
+      iMod (ghost_map_insert_big (list_to_map (zip (seq (length t1) (length efs)) efs)) with "Ht●") as "[Ht● Hefs◯]".
+      { apply map_disjoint_dom.
+        rewrite dom_insert_L !dom_list_to_map_L !fst_zip; [|by rewrite length_seq..].
+        rewrite !list_to_set_seq.
+        assert (tid ∈ (set_seq 0 (length t1) : gset nat)).
+        { eapply elem_of_set_seq, elem_of_seq, elem_of_zip_l => //. }
+        replace ({[tid]} ∪ set_seq 0 (length t1) : gset nat) with (set_seq 0 (length t1) : gset nat) by set_solver.
+        symmetry. apply set_seq_add_disjoint. }
+      iAssert ([∗ list] i↦k ∈ efs, (length t1+i) ↪[γb] k)%I with "[Hefs◯]" as "Hefs◯".
       { clear.
-        iInduction efs as [|ef efs] "IHf"; first done.
-        rewrite big_opL_cons list_to_set_disj_cons big_opMS_insert.
+        remember (length t1) as len. clear Heqlen.
+        iInduction efs as [|ef efs] "IHf" forall (len); first done.
+        rewrite big_sepL_cons length_cons -cons_seq zip_cons list_to_map_cons big_sepM_insert; last first.
+        { apply not_elem_of_dom_1.
+          rewrite dom_list_to_map_L fst_zip; last by rewrite length_seq.
+          rewrite list_to_set_seq elem_of_set_seq. lia. }
+        rewrite right_id.
         iDestruct "Hefs◯" as "[$ Hefs◯]".
-        by iApply "IHf". }
+        iDestruct ("IHf" with "Hefs◯") as "Hefs◯".
+        iApply (big_sepL_mono with "Hefs◯").
+        intros i ??.
+        replace (S len + i) with (len + S i) by lia.
+        done. }
       edestruct (prim_step_subset) as (σ_ext & σl2 & Hσl1_dis & Hσl2_dis & Heq1 & Heq2 & Hprim_step_l).
       { exact Hσlσ. } { exact He_red. } { exact Hprim_step. }
       subst σ1 σ2.
@@ -117,14 +147,55 @@ Section requisiteness.
 
       iMod "Hclose2" as "_".
       iMod ("Hclose1" with "[Ht● $Hown_state]") as "_".
-      { destruct (elem_of_list_split t1 e Hint1) as (t1a & t1b & ->).
-        iEval (rewrite Permutation_app_comm -app_comm_cons list_to_set_disj_cons) in "Ht●".
-        replace (({[+ e +]} ⊎ list_to_set_disj (t1b ++ t1a)) ∖ {[+ e +]})
-          with (list_to_set_disj (t1b ++ t1a) : gmultiset (expr Λ))
-          by multiset_solver.
-        iEval (rewrite -list_to_set_disj_cons app_comm_cons Permutation_app_comm) in "Ht●".
-        iEval (rewrite comm -list_to_set_disj_app) in "Ht●".
-        rewrite -!assoc -app_comm_cons.
+      { (* destruct [t1] into [t1a++e::t1b] *)
+        assert (Hlookupt1: t1!!tid = Some e).
+        { clear -Hint1.
+          assert (lemma: ∀ i, (tid,e) ∈ zip (seq i (length t1)) t1 → i≤tid ∧ t1 !! (tid-i) = Some e).
+          { clear. induction t1 as [|e0 t1 IH] => i Hint1; first set_solver.
+            rewrite /= elem_of_cons in Hint1. destruct Hint1 as [Hint1|Hint1].
+            - simplify_eq. replace (i-i) with 0 by lia. set_solver.
+            - destruct (IH _ Hint1) as [Hle Hlookupt1].
+              split; first lia.
+              apply lookup_cons_Some. right. split; first lia.
+              replace (tid-i-1) with (tid - S i) by lia.
+              exact Hlookupt1. }
+          destruct (lemma 0 Hint1) as [_ H].
+          replace (tid-0) with (tid) in H by lia.
+          done. }
+        destruct (elem_of_list_split_length t1 tid e Hlookupt1) as (t1a & t1b & -> & ->).
+
+        (* update [e] to [e2] *)
+        iEval (rewrite [x in seq 0 x]length_app seq_app) in "Ht●".
+        iEval (rewrite zip_app; last rewrite length_seq //) in "Ht●".
+        iEval (rewrite length_cons -cons_seq zip_cons) in "Ht●".
+        assert ((list_to_map (zip (seq 0 (length t1a)) t1a) : gmap nat (expr Λ)) !! length t1a = None).
+        { apply not_elem_of_dom_1.
+          rewrite dom_list_to_map_L fst_zip; last by rewrite length_seq.
+          rewrite list_to_set_seq elem_of_set_seq.
+          lia. }
+        iEval (rewrite list_to_map_app list_to_map_cons -(insert_union_r _ _ (length t1a) e) //) in "Ht●".
+        iEval (rewrite insert_insert) in "Ht●".
+        iEval (rewrite (insert_union_r _ _ (length t1a) e2) //) in "Ht●".
+        iEval (rewrite -list_to_map_cons -list_to_map_app) in "Ht●".
+        iEval (rewrite -zip_cons cons_seq -(length_cons e2)) in "Ht●".
+        iEval (rewrite -zip_app; last by apply length_seq) in "Ht●".
+        iEval (rewrite -seq_app -[x in seq 0 x]length_app) in "Ht●".
+
+        replace (length (t1a++e::t1b)) with (length (t1a++e2::t1b));
+          last rewrite !length_app //.
+
+        (* merge two [list_to_map]s *)
+        rewrite map_union_comm; last first.
+        { apply map_disjoint_dom.
+          rewrite !dom_list_to_map_L !fst_zip; [|by rewrite length_seq..].
+          rewrite !list_to_set_seq.
+          apply elem_of_disjoint => tid Hin1 Hin2.
+          apply elem_of_set_seq in Hin1,Hin2.
+          lia. }
+        iEval (rewrite -list_to_map_app -zip_app; last by rewrite length_seq) in "Ht●".
+        iEval (rewrite -[x in seq x (length efs)](left_id 0 Nat.add (length (t1a++e2::t1b)))) in "Ht●".
+        iEval (rewrite -seq_app -length_app) in "Ht●".
+        rewrite -assoc -app_comm_cons.
 
         iFrame "Ht●". iIntros "!>!%".
         intros t3 σ3 e3 _ Hsteps.
@@ -134,8 +205,11 @@ Section requisiteness.
         by apply (step_atomic e σl1 e2 σl2 efs t1a t1b). }
 
       iModIntro. simpl.
+      iAssert (∃ tid, tid ↪[γb] e2)%I with "[$He◯]" as "He◯".
+      iDestruct (big_sepL_mono _ (λ _ e, ∃ i, i ↪[γb] e)%I with "Hefs◯") as "Hefs◯".
+      { iIntros (???) "$". }
       iCombine "He◯ Hefs◯" as "Ht◯".
-      rewrite -(big_sepL_cons (λ _ e, ghost_bag_frag γb e)).
+      rewrite -(big_sepL_cons (λ _ e, ∃ i, i ↪[γb] e)%I).
       rewrite -(big_sepL_mono (λ _ e, WP e {{_, True}})%I ((λ _ e, WP e {{fork_post}})%I)); last first.
       { intros ???. apply wp_mono =>?. iIntros "_". iApply fork_post_trivial. }
       rewrite -(big_sepL_cons (λ _ e, WP e {{_, True}})%I).
@@ -150,11 +224,15 @@ Section requisiteness.
     iIntros (Hsafe) "HP".
     iDestruct "HP" as (σl nsl κsl ntl) "[Hown_state %HP]".
     specialize (Hsafe σl HP).
-    iMod (ghost_bag_alloc_big (list_to_set_disj t)) as (γb) "[Ht● Ht◯]".
-    iAssert ([∗ list] k ∈ t, ghost_bag_frag γb k)%I with "[Ht◯]" as "Ht◯".
+    iMod (ghost_map_alloc (list_to_map (zip (seq 0 (length t)) t))) as (γb) "[Ht● Ht◯]".
+    iAssert ([∗ list] k ∈ t, ∃ i, i ↪[γb] k)%I with "[Ht◯]" as "Ht◯".
     { clear.
-      iInduction t as [|e t] "IH"; first done.
-      rewrite big_opL_cons list_to_set_disj_cons big_opMS_insert.
+      remember 0 as start. clear Heqstart.
+      iInduction t as [|e t] "IH" forall (start); first done.
+      rewrite big_sepL_cons length_cons -cons_seq zip_cons list_to_map_cons big_sepM_insert; last first.
+      { apply not_elem_of_dom_1.
+        rewrite dom_list_to_map_L fst_zip; last by rewrite length_seq.
+        rewrite list_to_set_seq elem_of_set_seq. lia. }
       iDestruct "Ht◯" as "[$ Ht◯]".
       by iApply "IH". }
     iMod (inv_alloc nroot ⊤ (safeInv γb) with "[$Hown_state $Ht● //]") as "#Hinv".
