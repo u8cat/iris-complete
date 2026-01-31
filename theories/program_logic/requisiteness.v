@@ -282,7 +282,7 @@ Section requisiteness.
       iApply "IH".
   Qed.
 
-  Lemma wptp_requisiteness e t φ P :
+  Lemma wptp_requisiteness e t P φ :
     (∀ σ, P σ → adequate_tp NotStuck (e::t) σ (λ v _, φ v)) →
     ⌞P⌟ ⊢ |={⊤}=> WP e {{ v, ⌜φ v⌝ }} ∗ [∗ list] e ∈ t, WP e {{ _, True }}.
   Proof.
@@ -322,7 +322,7 @@ Section requisiteness.
     by iApply wptp_requisiteness_inv.
   Qed.
 
-  Lemma wp_requisiteness e φ P :
+  Lemma wp_requisiteness e P φ :
     (∀ σ, P σ → adequate NotStuck e σ (λ v _, φ v)) →
     ⌞P⌟ ⊢ WP e {{ v, ⌜φ v⌝ }}.
   Proof.
