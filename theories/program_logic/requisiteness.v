@@ -5,6 +5,7 @@ From complete_iris.program_logic Require Export adequacy.
 
 Class coirisG_gen (hlc : has_lc) (Λ : language) (Σ: gFunctors) `{!irisGS_gen hlc Λ Σ} := CoirisG {
   substate : relation (state Λ);
+  state_empty : state Λ;
   state_disjoint : relation (state Λ);
   state_union : state Λ → state Λ → state Λ;
 
@@ -20,6 +21,8 @@ Class coirisG_gen (hlc : has_lc) (Λ : language) (Σ: gFunctors) `{!irisGS_gen h
     substate σl σ → reducible e σl → prim_step e σ κ e' σ' efs →
     ∃ σ_ext σl', state_disjoint σl σ_ext ∧ state_disjoint σl' σ_ext ∧ σ = state_union σl σ_ext ∧ σ' = state_union σl' σ_ext ∧ prim_step e σl κ e' σl' efs;
 
+  own_state_empty ns κs nt : ⊢ own_state state_empty ns κs nt;
+
   own_state_agree σ ns κs nt σ' ns' κs' nt' :
     state_interp σ ns κs nt -∗ own_state σ' ns' κs' nt' -∗ ⌜substate σ' σ⌝;
 
@@ -32,10 +35,26 @@ Global Arguments CoirisG {hlc Λ Σ _}.
 
 Notation coirisG Λ Σ := (coirisG_gen HasLc Λ Σ).
 
-Definition stateful_pure `{!irisGS_gen hlc Λ Σ, !coirisG_gen hlc Λ Σ} (P : state Λ → Prop) : iProp Σ :=
+Definition bi_state `{!irisGS_gen hlc Λ Σ, !coirisG_gen hlc Λ Σ} (P : state Λ → Prop) : iProp Σ :=
   ∃ σ ns κs nt, own_state σ ns κs nt ∗ ⌜P σ⌝.
-Global Arguments stateful_pure {_ _ _ _ _} _%_stdpp_scope.
-Notation "⌞ P ⌟" := (stateful_pure P) (format "⌞ P ⌟") : bi_scope.
+Global Arguments bi_state {_ _ _ _ _} _%_stdpp_scope.
+Notation "⌞ P ⌟" := (bi_state P) (format "⌞ P ⌟") : bi_scope.
+
+Section stateful.
+  Context `{!irisGS_gen hlc Λ Σ, !coirisG_gen hlc Λ Σ}.
+
+  Lemma bi_pure_state' (P : Prop) :
+    P → ⊢ ⌞ λ _, P ⌟.
+  Proof.
+    iIntros (HP).
+    iExists state_empty,0,[],0. iSplit; last done.
+    iApply own_state_empty.
+  Qed.
+
+  Lemma bi_pure_state (P : Prop) :
+    ⌜P⌝ ⊢ ⌞ λ _, P ⌟.
+  Proof. by iIntros "%HP"; iApply bi_pure_state'. Qed.
+End stateful.
 
 Class requisiteG Λ Σ := RequisiteG {
   #[local] requisiteG_bag :: ghost_mapG Σ nat (expr Λ * (val Λ → Prop));
@@ -329,6 +348,15 @@ Section requisiteness.
     iIntros (Hadq) "HP".
     iMod (wptp_requisiteness e [] with "HP") as "[$ _]".
     intros σ HP. apply adequate_tp_adequate. auto.
+  Qed.
+
+  Lemma wp_requisiteness_nopre e φ :
+    (∀ σ, adequate NotStuck e σ (λ v _, φ v)) →
+    ⊢ WP e {{ v, ⌜φ v⌝ }}.
+  Proof.
+    iIntros (Hadq).
+    iApply (wp_requisiteness e (λ _, True)); first by auto.
+    by iApply bi_pure_state.
   Qed.
 
   Lemma wp_requisiteness_nofork e P Q :

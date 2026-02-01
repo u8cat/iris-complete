@@ -1,6 +1,6 @@
 From iris.proofmode Require Import base ltac_tactics.
 From complete_iris.program_logic Require Export requisiteness.
-From iris.heap_lang Require Import primitive_laws.
+From iris.heap_lang Require Export primitive_laws.
 
 Module colang.
 Global Instance state_empty : Empty state :=
@@ -673,6 +673,9 @@ Section state.
     ([∗ map] l↦ov ∈ σ.(heap), gen_heap.pointsto l (DfracOwn 1) ov) ∗
     ([∗ set] p ∈ σ.(used_proph_id), proph p (proph_list_resolves κs p)).
 
+  Lemma own_state_empty ns κs nt : ⊢ own_state state_empty ns κs nt.
+  Proof. rewrite /own_state big_sepM_empty big_sepS_empty. auto. Qed.
+
   Lemma own_state_agree σ ns κs nt σ' ns' κs' nt' :
     state_interp σ ns κs nt -∗ own_state σ' ns' κs' nt' -∗ ⌜σ' ⊆ σ⌝.
   Proof.
@@ -982,11 +985,13 @@ End colang.
 
 Global Program Instance heaplang_complete `{!heapGS_gen hlc Σ} : coirisG_gen hlc heap_lang Σ := {
   substate := colang.substate;
+  state_empty := colang.state_empty;
   state_disjoint := colang.state_disjoint;
   state_union := colang.state_union;
   own_state := colang.own_state;
   reducible_mono := colang.reducible_mono;
   prim_step_subset := colang.prim_step_subset;
+  own_state_empty := colang.own_state_empty;
   own_state_agree := colang.own_state_agree;
   state_update := colang.state_update;
 }.
