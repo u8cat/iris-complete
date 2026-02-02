@@ -1,20 +1,20 @@
 # Forward most targets to Coq makefile (with some trick to make this phony)
-%: Makefile.coq phony
-	+@make -f Makefile.coq $@
+%: CoqMakefile phony
+	+@make -f CoqMakefile $@
 
-all: Makefile.coq
-	+@make -f Makefile.coq all
+all: CoqMakefile
+	+@make -f CoqMakefile all
 .PHONY: all
 
-clean: Makefile.coq
-	+@make -f Makefile.coq clean
+clean: CoqMakefile
+	+@make -f CoqMakefile clean
 	find theories/* \( -name "*~" -o -name "*.d" -o -name "*.vo" -o -name "*.aux" -o -name "*.cache" -o -name "*.glob" -o -name "*.vio" \) -print -delete || true
-	rm -f Makefile.coq .lia.cache
+	rm -f CoqMakefile .lia.cache
 .PHONY: clean
 
 # Create Coq Makefile.
-Makefile.coq: _CoqProject Makefile
-	"$(COQBIN)coq_makefile" -f _CoqProject -o Makefile.coq
+CoqMakefile: _CoqProject Makefile
+	"$(COQBIN)rocq" makefile -f _CoqProject -o CoqMakefile
 
 # Install build-dependencies
 build-dep/opam: opam Makefile
@@ -41,7 +41,7 @@ build-dep: build-dep/opam phony
 zip:
 	git archive --worktree-attributes --format=zip -o rocq-ficus.zip HEAD
 
-# Some files that do *not* need to be forwarded to Makefile.coq
+# Some files that do *not* need to be forwarded to CoqMakefile
 Makefile: ;
 _CoqProject: ;
 opam: ;

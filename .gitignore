@@ -13,8 +13,8 @@ _opam
 build-dep
 .coq-native/
 _build
-Makefile.coq
-Makefile.coq.conf
-.Makefile.coq.d
+CoqMakefile
+CoqMakefile.conf
+.CoqMakefile.d
 .vscode
 .DS_Store
