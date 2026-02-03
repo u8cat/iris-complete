@@ -1,6 +1,6 @@
 From iris.proofmode Require Import base ltac_tactics.
 From complete_iris.program_logic Require Export requisiteness.
-From iris.heap_lang Require Export primitive_laws.
+From iris.heap_lang Require Export proofmode notation.
 
 Module colang.
 Global Instance state_empty : Empty state :=
