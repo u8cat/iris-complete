@@ -4,32 +4,23 @@ From iris.program_logic Require Export lifting.
 From complete_iris.program_logic Require Export adequacy.
 
 Class coirisG_gen (hlc : has_lc) (Λ : language) (Σ: gFunctors) `{!irisGS_gen hlc Λ Σ} := CoirisG {
-  substate : relation (state Λ);
   state_empty : state Λ;
-  state_disjoint : relation (state Λ);
-  state_union : state Λ → state Λ → state Λ;
 
   own_state : state Λ → nat → list (observation Λ) → nat → iProp Σ;
   #[local] own_state_timeless σ ns κ nt :: Timeless (own_state σ ns κ nt);
 
   fork_post_trivial v : ⊢ fork_post v;
 
-  reducible_mono e σ σ':
-    substate σ σ' → reducible e σ → reducible e σ';
-
-  prim_step_subset e σ κ e' σ' efs σl :
-    substate σl σ → reducible e σl → prim_step e σ κ e' σ' efs →
-    ∃ σ_ext σl', state_disjoint σl σ_ext ∧ state_disjoint σl' σ_ext ∧ σ = state_union σl σ_ext ∧ σ' = state_union σl' σ_ext ∧ prim_step e σl κ e' σl' efs;
-
   own_state_empty ns κs nt : ⊢ own_state state_empty ns κs nt;
 
-  own_state_agree σ ns κs nt σ' ns' κs' nt' :
-    state_interp σ ns κs nt -∗ own_state σ' ns' κs' nt' -∗ ⌜substate σ' σ⌝;
+  own_state_reducible e σ ns κs nt σ' ns' κs' nt' :
+    reducible e σ' →
+    state_interp σ ns κs nt -∗ own_state σ' ns' κs' nt' -∗ ⌜reducible e σ⌝;
 
-  state_update e e' σ σ' σ_ext ns ns' κ κs κ' nt nt' efs :
-    state_disjoint σ σ_ext → state_disjoint σ' σ_ext → prim_step e σ κ e' σ' efs →
-    state_interp (state_union σ σ_ext) ns (κ++κs) nt -∗ own_state σ ns' κ' nt' ={∅}=∗
-    state_interp (state_union σ' σ_ext) (S ns) κs (length efs + nt) ∗ own_state σ' (S ns) κs (length efs + nt);
+  own_state_update e e' σ σ' σl ns ns' κ κs κ' nt nt' efs :
+    reducible e σl → prim_step e σ κ e' σ' efs →
+    state_interp σ ns (κ++κs) nt -∗ own_state σl ns' κ' nt' ={∅}=∗
+    ∃ σl', ⌜prim_step e σl κ e' σl' efs⌝ ∗ state_interp σ' (S ns) κs (length efs + nt) ∗ own_state σl' (S ns) κs (length efs + nt);
 }.
 Global Arguments CoirisG {hlc Λ Σ _}.
 
@@ -143,7 +134,6 @@ Section requisiteness.
       iDestruct (bi.later_exist_except_0 with "H") as ">[%ntl H]".
       iDestruct "H" as ">(Hown_state & Ht● & %Hadq)".
       iApply fupd_mask_intro; first set_solver. iIntros "Hclose2".
-      iDestruct (own_state_agree with "Hstate_interp Hown_state") as %Hσlσ.
       iDestruct (ghost_map_lookup with "Ht● He◯") as %Hint1%elem_of_list_to_map_2.
 
       assert (He_red : reducible e σl1). {
@@ -154,7 +144,7 @@ Section requisiteness.
         - rewrite /= He in Hfalse. by inversion Hfalse.
       }
 
-      iSplit; first by iPureIntro; eapply reducible_mono.
+      iSplit; first by iApply (own_state_reducible with "Hstate_interp Hown_state").
       iIntros (e2 σ2 efs Hprim_step) "_ !>!>".
 
       (* update ghost resources *)
@@ -186,11 +176,8 @@ Section requisiteness.
         intros i ??.
         replace (S len + i) with (len + S i) by lia.
         done. }
-      edestruct (prim_step_subset) as (σ_ext & σl2 & Hσl1_dis & Hσl2_dis & Heq1 & Heq2 & Hprim_step_l).
-      { exact Hσlσ. } { exact He_red. } { exact Hprim_step. }
-      subst σ1 σ2.
-      iMod (state_update with "Hstate_interp Hown_state") as "[$ Hown_state]".
-      { exact Hσl1_dis. } { exact Hσl2_dis. } { exact Hprim_step_l. }
+      iMod (own_state_update with "Hstate_interp Hown_state") as (σl2) "(%Hprim_step_l & $ & Hown_state)".
+      {exact He_red. } { exact Hprim_step. }
 
       iMod "Hclose2" as "_".
       iMod ("Hclose1" with "[Ht● $Hown_state]") as "_".
@@ -378,7 +365,6 @@ Section requisiteness.
       iIntros (σ1 ns κ κs nt) "Hstate_interp".
       iApply fupd_mask_intro; first set_solver. iIntros "Hclose".
       iDestruct "HP" as (σl1 nsl κl ntl) "[Hσl %HPσl]".
-      iDestruct (own_state_agree with "Hstate_interp Hσl") as %Hσlσ.
       specialize (Hadq σl1 HPσl).
 
       assert (He_red : reducible e σl1). {
@@ -389,14 +375,11 @@ Section requisiteness.
         - rewrite /= He in Hfalse. by inversion Hfalse.
       }
 
-      iSplit; first by iPureIntro; eapply reducible_mono.
+      iSplit; first by iApply (own_state_reducible with "Hstate_interp Hσl").
       iIntros (e2 σ2 efs Hprim_step) "_ !>!>". iMod "Hclose" as "_".
-      edestruct (prim_step_subset) as (σ_ext & σl2 & Hσl1_dis & Hσl2_dis & Heq1 & Heq2 & Hprim_step_l).
-      { exact Hσlσ. } { exact He_red. } { exact Hprim_step. }
-      subst σ1 σ2.
       iApply (fupd_mask_mono ∅); first set_solver.
-      iMod (state_update with "Hstate_interp Hσl") as "[$ Hσl]".
-      { exact Hσl1_dis. } { exact Hσl2_dis. } { exact Hprim_step_l. }
+      iMod (own_state_update with "Hstate_interp Hσl") as (σl2) "(%Hprim_step_l & $ & Hσl)".
+      {exact He_red. } { exact Hprim_step. }
       iModIntro.
 
       assert (efs = []) as ->.
@@ -424,7 +407,6 @@ Section requisiteness.
     iIntros (σ1 ns κ κs nt) "Hstate_interp".
     iApply fupd_mask_intro; first set_solver. iIntros "Hclose".
     iDestruct "HP" as (σl1 nsl κl ntl) "[Hσl %HPσl]".
-    iDestruct (own_state_agree with "Hstate_interp Hσl") as %Hσlσ.
     specialize (Hadq σl1 HPσl).
 
     assert (He_red : reducible e σl1). {
@@ -435,14 +417,11 @@ Section requisiteness.
       - rewrite /= He in Hfalse. by inversion Hfalse.
     }
 
-    iSplit; first by iPureIntro; eapply reducible_mono.
+    iSplit; first by iApply (own_state_reducible with "Hstate_interp Hσl").
     iIntros (e2 σ2 efs Hprim_step) "_ !>!>". iMod "Hclose" as "_".
-    edestruct (prim_step_subset) as (σ_ext & σl2 & Hσl1_dis & Hσl2_dis & Heq1 & Heq2 & Hprim_step_l).
-    { exact Hσlσ. } { exact He_red. } { exact Hprim_step. }
-    subst σ1 σ2.
     iApply (fupd_mask_mono ∅); first set_solver.
-    iMod (state_update with "Hstate_interp Hσl") as "[$ Hσl]".
-    { exact Hσl1_dis. } { exact Hσl2_dis. } { exact Hprim_step_l. }
+    iMod (own_state_update with "Hstate_interp Hσl") as (σl2) "(%Hprim_step_l & $ & Hσl)".
+    {exact He_red. } { exact Hprim_step. }
     iModIntro.
 
     assert (efs = []) as ->.
