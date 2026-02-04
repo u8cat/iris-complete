@@ -13,14 +13,12 @@ Class coirisG_gen (hlc : has_lc) (Λ : language) (Σ: gFunctors) `{!irisGS_gen h
 
   own_state_empty ns κs nt : ⊢ own_state state_empty ns κs nt;
 
-  own_state_reducible e σ ns κs nt σ' ns' κs' nt' :
-    reducible e σ' →
-    state_interp σ ns κs nt -∗ own_state σ' ns' κs' nt' -∗ ⌜reducible e σ⌝;
-
-  own_state_update e e' σ σ' σl ns ns' κ κs κ' nt nt' efs :
-    reducible e σl → prim_step e σ κ e' σ' efs →
-    state_interp σ ns (κ++κs) nt -∗ own_state σl ns' κ' nt' ={∅}=∗
-    ∃ σl', ⌜prim_step e σl κ e' σl' efs⌝ ∗ state_interp σ' (S ns) κs (length efs + nt) ∗ own_state σl' (S ns) κs (length efs + nt);
+  own_state_update e σ ns κ κs nt σl ns' κ' nt' :
+    reducible e σl →
+    state_interp σ ns (κ++κs) nt -∗ own_state σl ns' κ' nt' -∗
+    ⌜reducible e σ⌝ ∗
+    (∀ e' σ' efs, ⌜prim_step e σ κ e' σ' efs⌝ ={∅}=∗
+    ∃ σl', ⌜prim_step e σl κ e' σl' efs⌝ ∗ state_interp σ' (S ns) κs (length efs + nt) ∗ own_state σl' (S ns) κs (length efs + nt));
 }.
 Global Arguments CoirisG {hlc Λ Σ _}.
 
@@ -136,15 +134,13 @@ Section requisiteness.
       iApply fupd_mask_intro; first set_solver. iIntros "Hclose2".
       iDestruct (ghost_map_lookup with "Ht● He◯") as %Hint1%elem_of_list_to_map_2.
 
-      assert (He_red : reducible e σl1). {
-        destruct Hadq.
+      iDestruct (own_state_update with "Hstate_interp Hown_state") as "[$ Hstate_update]".
+      { destruct Hadq.
         specialize (adequate_tp_not_stuck t1 σl1 e eq_refl (ltac:(apply rtc_refl))).
         destruct adequate_tp_not_stuck as [Hfalse|]; try done.
         - by eapply elem_of_zip_l,elem_of_zip_r.
-        - rewrite /= He in Hfalse. by inversion Hfalse.
-      }
+        - rewrite /= He in Hfalse. by inversion Hfalse. }
 
-      iSplit; first by iApply (own_state_reducible with "Hstate_interp Hown_state").
       iIntros (e2 σ2 efs Hprim_step) "_ !>!>".
 
       (* update ghost resources *)
@@ -176,8 +172,7 @@ Section requisiteness.
         intros i ??.
         replace (S len + i) with (len + S i) by lia.
         done. }
-      iMod (own_state_update with "Hstate_interp Hown_state") as (σl2) "(%Hprim_step_l & $ & Hown_state)".
-      {exact He_red. } { exact Hprim_step. }
+      iMod ("Hstate_update" with "[//]") as (σl2) "(%Hprim_step_l & $ & Hown_state)".
 
       iMod "Hclose2" as "_".
       iMod ("Hclose1" with "[Ht● $Hown_state]") as "_".
@@ -367,19 +362,15 @@ Section requisiteness.
       iDestruct "HP" as (σl1 nsl κl ntl) "[Hσl %HPσl]".
       specialize (Hadq σl1 HPσl).
 
-      assert (He_red : reducible e σl1). {
-        pose proof (adequate_nofork_not_stuck _ _ _ _ Hadq) as Hnot_stuck.
+      iDestruct (own_state_update with "Hstate_interp Hσl") as "[$ Hstate_update]".
+      { pose proof (adequate_nofork_not_stuck _ _ _ _ Hadq) as Hnot_stuck.
         specialize (Hnot_stuck [e] σl1 e).
         destruct Hnot_stuck as [Hfalse|]; try done.
         - set_solver.
-        - rewrite /= He in Hfalse. by inversion Hfalse.
-      }
-
-      iSplit; first by iApply (own_state_reducible with "Hstate_interp Hσl").
+        - rewrite /= He in Hfalse. by inversion Hfalse. }
       iIntros (e2 σ2 efs Hprim_step) "_ !>!>". iMod "Hclose" as "_".
       iApply (fupd_mask_mono ∅); first set_solver.
-      iMod (own_state_update with "Hstate_interp Hσl") as (σl2) "(%Hprim_step_l & $ & Hσl)".
-      {exact He_red. } { exact Hprim_step. }
+      iMod ("Hstate_update" with "[//]") as (σl2) "(%Hprim_step_l & $ & Hσl)".
       iModIntro.
 
       assert (efs = []) as ->.
@@ -409,19 +400,15 @@ Section requisiteness.
     iDestruct "HP" as (σl1 nsl κl ntl) "[Hσl %HPσl]".
     specialize (Hadq σl1 HPσl).
 
-    assert (He_red : reducible e σl1). {
-      pose proof (adequate_nofork_not_stuck _ _ _ _ Hadq) as Hnot_stuck.
+    iDestruct (own_state_update with "Hstate_interp Hσl") as "[$ Hstate_update]".
+    { pose proof (adequate_nofork_not_stuck _ _ _ _ Hadq) as Hnot_stuck.
       specialize (Hnot_stuck [e] σl1 e).
       destruct Hnot_stuck as [Hfalse|]; try done.
       - set_solver.
-      - rewrite /= He in Hfalse. by inversion Hfalse.
-    }
-
-    iSplit; first by iApply (own_state_reducible with "Hstate_interp Hσl").
+      - rewrite /= He in Hfalse. by inversion Hfalse. }
     iIntros (e2 σ2 efs Hprim_step) "_ !>!>". iMod "Hclose" as "_".
     iApply (fupd_mask_mono ∅); first set_solver.
-    iMod (own_state_update with "Hstate_interp Hσl") as (σl2) "(%Hprim_step_l & $ & Hσl)".
-    {exact He_red. } { exact Hprim_step. }
+    iMod ("Hstate_update" with "[//]") as (σl2) "(%Hprim_step_l & $ & Hσl)".
     iModIntro.
 
     assert (efs = []) as ->.

@@ -708,15 +708,6 @@ Section state.
         * iApply ("IHL" with "Hproph● Hproph◯").
   Qed.
 
-  Lemma own_state_reducible e σ ns κs nt σ' ns' κs' nt' :
-    reducible e σ' →
-    state_interp σ ns κs nt -∗ own_state σ' ns' κs' nt' -∗ ⌜reducible e σ⌝.
-  Proof.
-    iIntros (Hred) "H● H◯".
-    iDestruct (own_state_agree with "H● H◯") as %Hsubstate.
-    iPureIntro. by eapply reducible_mono.
-  Qed.
-
   Lemma own_state_canoicalize σ ns κs nt σ' ns' κs' nt' :
     state_interp σ ns κs nt -∗ own_state σ' ns' κs' nt' -∗
     state_interp σ ns κs nt ∗ own_state σ' ns κs nt.
@@ -990,15 +981,29 @@ Section state.
       rewrite /= decide_False; [done|set_solver].
   Qed.
 
-  Lemma own_state_update e e' σ σ' σl ns ns' κ κs κ' nt nt' efs :
-    reducible e σl → prim_step e σ κ e' σ' efs →
-    state_interp σ ns (κ++κs) nt -∗ own_state σl ns' κ' nt' ={∅}=∗
-    ∃ σl', ⌜prim_step e σl κ e' σl' efs⌝ ∗ state_interp σ' (S ns) κs (length efs + nt) ∗ own_state σl' (S ns) κs (length efs + nt).
+  (*Lemma own_state_reducible e σ ns κs nt σ' ns' κs' nt' :
+    reducible e σ' →
+    state_interp σ ns κs nt -∗ own_state σ' ns' κs' nt' -∗ ⌜reducible e σ⌝.
   Proof.
-    iIntros (He_red Hprim_step) "H● H◯".
+    iIntros (Hred) "H● H◯".
+    iDestruct (own_state_agree with "H● H◯") as %Hsubstate.
+    iPureIntro. by eapply reducible_mono.
+  Qed.*)
+
+  Lemma own_state_update e σ ns κ κs nt σl ns' κ' nt' :
+    reducible e σl →
+    state_interp σ ns (κ++κs) nt -∗ own_state σl ns' κ' nt' -∗
+    ⌜reducible e σ⌝ ∗
+    (∀ e' σ' efs, ⌜prim_step e σ κ e' σ' efs⌝ ={∅}=∗
+    ∃ σl', ⌜prim_step e σl κ e' σl' efs⌝ ∗ state_interp σ' (S ns) κs (length efs + nt) ∗ own_state σl' (S ns) κs (length efs + nt)).
+  Proof.
+    iIntros (Hred) "H● H◯".
+    iDestruct (own_state_agree with "H● H◯") as %Hsubstate.
+    iSplit. { iPureIntro. by eapply reducible_mono. }
+    iIntros (e' σ' efs Hprim_step).
     iDestruct (own_state_agree with "H● H◯") as %Hσlσ.
     edestruct (prim_step_subset) as (σ_ext & σl2 & Hσl1_dis & Hσl2_dis & Heq1 & Heq2 & Hprim_step_l).
-    { exact Hσlσ. } { exact He_red. } { exact Hprim_step. }
+    { exact Hσlσ. } { exact Hred. } { exact Hprim_step. }
     subst σ σ'.
     by iMod (state_update with "H● H◯") as "[$ $]".
   Qed.
@@ -1009,7 +1014,6 @@ Global Program Instance heaplang_complete `{!heapGS_gen hlc Σ} : coirisG_gen hl
   state_empty := colang.state_empty;
   own_state := colang.own_state;
   own_state_empty := colang.own_state_empty;
-  own_state_reducible := colang.own_state_reducible;
   own_state_update := colang.own_state_update;
 }.
 Solve Obligations with auto.
