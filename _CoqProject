@@ -9,4 +9,4 @@ theories/heap_lang/requisiteness.v
 
 theories/program_logic/adequacy.v
 theories/program_logic/requisiteness.v
-theories/program_logic/ecxt_requisiteness.v
+theories/program_logic/ectx_requisiteness.v

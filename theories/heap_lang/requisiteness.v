@@ -1,5 +1,5 @@
 From iris.proofmode Require Import base ltac_tactics.
-From complete_iris.program_logic Require Export ecxt_requisiteness.
+From complete_iris.program_logic Require Export ectx_requisiteness.
 From iris.heap_lang Require Export proofmode notation.
 
 Module colang.
