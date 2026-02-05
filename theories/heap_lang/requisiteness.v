@@ -135,16 +135,6 @@ Section substate.
       do 4 eexists; econstructor; eauto.
   Qed.
 
-  Lemma reducible_mono e σ σ' : σ ⊆ σ' → reducible e σ → reducible e σ'.
-  Proof.
-    intros Hsubstate Hred.
-    destruct Hred as (κ & e2 & σ2 & efs & Hprim_step). simpl in *.
-    destruct Hprim_step as [K e_ e2_ -> -> Hbase_step]. simpl in *.
-    apply base_prim_fill_reducible.
-    eapply base_reducible_mono; first eassumption.
-    do 4 econstructor; eassumption.
-  Qed.
-
   Local Lemma base_reducible_free_loc l σ :
     base_reducible (Free (Val (LitV (LitLoc l)))) σ →
     ∃ v, σ.(heap) !! l = Some (Some v).
@@ -153,23 +143,6 @@ Section substate.
     destruct Hred as (κ & e2 & σ2 & efs & Hbase_step).
     simpl in *.
     inversion Hbase_step. eauto.
-  Qed.
-
-  Local Lemma reducible_free_loc K l σ :
-    reducible (fill K (Free (Val (LitV (LitLoc l))))) σ →
-    ∃ v, σ.(heap) !! l = Some (Some v).
-  Proof.
-    intros Hred%reducible_fill_inv; last done.
-    apply base_reducible_free_loc, prim_base_reducible; first done.
-    intros K' e' Heq Hnot_val. simpl in *.
-    induction K' as [|k' K' _] using rev_ind; first done.
-    rewrite fill_app /= in Heq.
-    destruct k'; simpl in Heq; try discriminate Heq.
-    injection Heq as Heq.
-    apply (f_equal to_val), eq_sym in Heq.
-    simpl in Heq.
-    apply to_val_fill_some in Heq as [-> ->].
-    discriminate Hnot_val.
   Qed.
 
   Local Lemma base_reducible_load_loc l σ :
@@ -182,23 +155,6 @@ Section substate.
     inversion Hbase_step. eauto.
   Qed.
 
-  Local Lemma reducible_load_loc K l σ :
-    reducible (fill K (Load (Val (LitV (LitLoc l))))) σ →
-    ∃ v, σ.(heap) !! l = Some (Some v).
-  Proof.
-    intros Hred%reducible_fill_inv; last done.
-    apply base_reducible_load_loc, prim_base_reducible; first done.
-    intros K' e' Heq Hnot_val. simpl in *.
-    induction K' as [|k' K' _] using rev_ind; first done.
-    rewrite fill_app /= in Heq.
-    destruct k'; simpl in Heq; try discriminate Heq.
-    injection Heq as Heq.
-    apply (f_equal to_val), eq_sym in Heq.
-    simpl in Heq.
-    apply to_val_fill_some in Heq as [-> ->].
-    discriminate Hnot_val.
-  Qed.
-
   Local Lemma base_reducible_store_loc l w σ :
     base_reducible (Store (Val (LitV (LitLoc l))) (Val w)) σ →
     ∃ v, σ.(heap) !! l = Some (Some v).
@@ -207,28 +163,6 @@ Section substate.
     destruct Hred as (κ & e2 & σ2 & efs & Hbase_step).
     simpl in *.
     inversion Hbase_step. eauto.
-  Qed.
-
-  Local Lemma reducible_store_loc K l w σ :
-    reducible (fill K (Store (Val (LitV (LitLoc l))) (Val w))) σ →
-    ∃ v, σ.(heap) !! l = Some (Some v).
-  Proof.
-    intros Hred%reducible_fill_inv; last done.
-    eapply base_reducible_store_loc, prim_base_reducible; first done.
-    intros K' e' Heq Hnot_val. simpl in *.
-    induction K' as [|k' K' _] using rev_ind; first done.
-    rewrite fill_app /= in Heq.
-    destruct k'; simpl in Heq; try discriminate Heq.
-    - injection Heq as Heq.
-      apply (f_equal to_val), eq_sym in Heq.
-      simpl in Heq.
-      apply to_val_fill_some in Heq as [-> ->].
-      discriminate Hnot_val.
-    - injection Heq as ? Heq.
-      apply (f_equal to_val), eq_sym in Heq.
-      simpl in Heq.
-      apply to_val_fill_some in Heq as [-> ->].
-      discriminate Hnot_val.
   Qed.
 
   Local Lemma base_reducible_xchg_loc l v2 σ :
@@ -241,28 +175,6 @@ Section substate.
     inversion Hbase_step. eauto.
   Qed.
 
-  Local Lemma reducible_xchg_loc K l v2 σ :
-    reducible (fill K (Xchg (Val (LitV (LitLoc l))) (Val v2))) σ →
-    ∃ v, σ.(heap) !! l = Some (Some v).
-  Proof.
-    intros Hred%reducible_fill_inv; last done.
-    eapply base_reducible_xchg_loc, prim_base_reducible; first done.
-    intros K' e' Heq Hnot_val. simpl in *.
-    induction K' as [|k' K' _] using rev_ind; first done.
-    rewrite fill_app /= in Heq.
-    destruct k'; simpl in Heq; try discriminate Heq.
-    - injection Heq as Heq.
-      apply (f_equal to_val), eq_sym in Heq.
-      simpl in Heq.
-      apply to_val_fill_some in Heq as [-> ->].
-      discriminate Hnot_val.
-    - injection Heq as ? Heq.
-      apply (f_equal to_val), eq_sym in Heq.
-      simpl in Heq.
-      apply to_val_fill_some in Heq as [-> ->].
-      discriminate Hnot_val.
-  Qed.
-
   Local Lemma base_reducible_cmpxchg_loc l v1 v2 σ :
     base_reducible (CmpXchg (Val (LitV (LitLoc l))) (Val v1) (Val v2)) σ →
     ∃ v, σ.(heap) !! l = Some (Some v).
@@ -271,33 +183,6 @@ Section substate.
     destruct Hred as (κ & e2 & σ2 & efs & Hbase_step).
     simpl in *.
     inversion Hbase_step. eauto.
-  Qed.
-
-  Local Lemma reducible_cmpxchg_loc K l v1 v2 σ :
-    reducible (fill K (CmpXchg (Val (LitV (LitLoc l))) (Val v1) (Val v2))) σ →
-    ∃ v, σ.(heap) !! l = Some (Some v).
-  Proof.
-    intros Hred%reducible_fill_inv; last done.
-    eapply base_reducible_cmpxchg_loc, prim_base_reducible; first done.
-    intros K' e' Heq Hnot_val. simpl in *.
-    induction K' as [|k' K' _] using rev_ind; first done.
-    rewrite fill_app /= in Heq.
-    destruct k'; simpl in Heq; try discriminate Heq.
-    - injection Heq as Heq.
-      apply (f_equal to_val), eq_sym in Heq.
-      simpl in Heq.
-      apply to_val_fill_some in Heq as [-> ->].
-      discriminate Hnot_val.
-    - injection Heq as ? Heq.
-      apply (f_equal to_val), eq_sym in Heq.
-      simpl in Heq.
-      apply to_val_fill_some in Heq as [-> ->].
-      discriminate Hnot_val.
-    - injection Heq as ?? Heq.
-      apply (f_equal to_val), eq_sym in Heq.
-      simpl in Heq.
-      apply to_val_fill_some in Heq as [-> ->].
-      discriminate Hnot_val.
   Qed.
 
   Local Lemma base_reducible_faa_loc l i2 σ :
@@ -310,28 +195,6 @@ Section substate.
     inversion Hbase_step. eauto.
   Qed.
 
-  Local Lemma reducible_faa_loc K l i2 σ :
-    reducible (fill K (FAA (Val (LitV (LitLoc l))) (Val (LitV (LitInt i2))))) σ →
-    ∃ i1, σ.(heap) !! l = Some (Some (LitV (LitInt i1))).
-  Proof.
-    intros Hred%reducible_fill_inv; last done.
-    eapply base_reducible_faa_loc, prim_base_reducible; first done.
-    intros K' e' Heq Hnot_val. simpl in *.
-    induction K' as [|k' K' _] using rev_ind; first done.
-    rewrite fill_app /= in Heq.
-    destruct k'; simpl in Heq; try discriminate Heq.
-    - injection Heq as Heq.
-      apply (f_equal to_val), eq_sym in Heq.
-      simpl in Heq.
-      apply to_val_fill_some in Heq as [-> ->].
-      discriminate Hnot_val.
-    - injection Heq as ? Heq.
-      apply (f_equal to_val), eq_sym in Heq.
-      simpl in Heq.
-      apply to_val_fill_some in Heq as [-> ->].
-      discriminate Hnot_val.
-  Qed.
-
   Local Lemma base_reducible_resolve_red e p w σ σl κ v σ' efs :
     base_step e σ κ (Val v) σ' efs →
     base_reducible (Resolve e (Val (LitV (LitProphecy p))) (Val w)) σl →
@@ -341,33 +204,6 @@ Section substate.
     destruct Hred as (? & e2 & σ2 & ? & Hbase_step).
     simpl in *.
     inversion Hbase_step. eauto 6.
-  Qed.
-
-  Local Lemma reducible_resolve_red K e p w σ σl κ v σ' efs :
-    base_step e σ κ (Val v) σ' efs →
-    reducible (fill K (Resolve e (Val (LitV (LitProphecy p))) (Val w))) σl →
-    p ∈ σl.(used_proph_id) ∧ ∃ κl vl σl' efsl, base_step e σl κl (Val vl) σl' efsl.
-  Proof.
-    intros Hatomic Hred%reducible_fill_inv; last done.
-    eapply base_reducible_resolve_red, prim_base_reducible; [done..|].
-    intros K' e' Heq Hnot_val. simpl in *.
-    induction K' as [|k' K' _] using rev_ind; first done.
-    rewrite fill_app /= in Heq.
-    destruct k'; simpl in Heq; try discriminate Heq.
-    - injection Heq as ->.
-      apply base_ctx_step_val in Hatomic as [? Heq].
-      apply to_val_fill_some in Heq as [-> ->].
-      discriminate Hnot_val.
-    - injection Heq as ? Heq.
-      apply (f_equal to_val), eq_sym in Heq.
-      simpl in Heq.
-      apply to_val_fill_some in Heq as [-> ->].
-      discriminate Hnot_val.
-    - injection Heq as ?? Heq.
-      apply (f_equal to_val), eq_sym in Heq.
-      simpl in Heq.
-      apply to_val_fill_some in Heq as [-> ->].
-      discriminate Hnot_val.
   Qed.
 
   Local Lemma state_init_heap_subseteq l n v σ :
@@ -477,25 +313,6 @@ Section substate.
     - (* Resolve *)
       eapply base_reducible_resolve_red in Hred as [Hin (?&?&?&?&Hbase_step')]; last eassumption.
       by eapply atomic_base_step_ext_subset.
-  Qed.
-
-  Local Lemma prim_step_ext_subset e σ κ e' σ' efs σl :
-    σl ⊆ σ → reducible e σl → prim_step e σ κ e' σ' efs →
-    σ ∖ σl ⊆ σ'.
-  Proof.
-    intros Hsubset Hred Hprim_step.
-    destruct Hprim_step as [K e_ e2_ -> -> Hbase_step]. simpl in *.
-    eapply base_step_ext_subset; try eassumption.
-    apply prim_base_reducible.
-    - apply reducible_fill_inv in Hred; first done.
-      by eapply val_base_stuck.
-    - intros K' e' Heq Hnot_val. simpl in *.
-      induction K' as [|k' K' _] using rev_ind; first done.
-      rewrite fill_app /= in Heq.
-      rewrite Heq in Hbase_step.
-      apply base_ctx_step_val in Hbase_step.
-      destruct Hbase_step as [? [-> ->]%to_val_fill_some].
-      discriminate Hnot_val.
   Qed.
 
   Local Lemma fresh_heap_mono (h h' : gmap loc (option val) ) n (l : loc) :
@@ -701,29 +518,6 @@ Section substate.
         last eassumption.
       econstructor; eauto.
       by eapply atomic_base_step_subset.
-  Qed.
-
-  Lemma prim_step_subset e σ κ e' σ' efs σl :
-    σl ⊆ σ → reducible e σl → prim_step e σ κ e' σ' efs →
-    ∃ σ_ext σl', σl##σ_ext ∧ σl'##σ_ext ∧ σ = σl ∪ σ_ext ∧ σ' = σl' ∪ σ_ext ∧ prim_step e σl κ e' σl' efs.
-  Proof.
-    intros Hsubstate Hred Hprim_step.
-    destruct Hprim_step as [K e_ e2_ -> -> Hbase_step]. simpl in *.
-    apply reducible_fill_inv in Hred; last by eapply val_base_stuck.
-    destruct (base_step_subset e_ σ κ e2_ σ' efs σl Hsubstate)
-      as (σ_ext & σl' & Hdisj1 & Hdisj2 & Heq1 & Heq2 & Hbase_stepl);
-      [|assumption|].
-    { apply prim_base_reducible; first assumption.
-      intros K' e' Heq Hnot_val. simpl in *.
-      induction K' as [|k' K' _] using rev_ind; first done.
-      rewrite fill_app /= in Heq.
-      rewrite Heq in Hbase_step.
-      apply base_ctx_step_val in Hbase_step.
-      destruct Hbase_step as [? [-> ->]%to_val_fill_some].
-      discriminate Hnot_val. }
-    exists σ_ext, σl'.
-    do 4 (split; first done).
-    econstructor; eauto.
   Qed.
 End substate.
 
@@ -1043,17 +837,7 @@ Section state.
       rewrite /= decide_False; [done|set_solver].
   Qed.
 
-  Lemma prim_step_state_update e e' σ σ' σ_ext ns ns' κ κs κ' nt nt' efs :
-    σ ## σ_ext → σ' ## σ_ext → prim_step e σ κ e' σ' efs →
-    state_interp (σ∪σ_ext) ns (κ++κs) nt -∗ own_state σ ns' κ' nt' ={∅}=∗
-    state_interp (σ'∪σ_ext) (S ns) κs (length efs + nt) ∗ own_state σ' (S ns) κs (length efs + nt).
-  Proof.
-    iIntros (Hdisj1 Hdisj2 Hprim_step) "H● H◯".
-    destruct Hprim_step as [K e_ e2_ -> -> Hbase_step]. simpl in *.
-    by iMod (base_step_state_update with "H● H◯") as "[$ $]".
-  Qed.
-
-  Lemma base_own_state_update e σ ns κ κs nt σl ns' κ' nt' :
+  Lemma own_state_update e σ ns κ κs nt σl ns' κ' nt' :
     base_reducible e σl →
     state_interp σ ns (κ++κs) nt -∗ own_state σl ns' κ' nt' -∗
     ⌜base_reducible e σ⌝ ∗
@@ -1077,6 +861,6 @@ Global Program Instance heaplang_complete `{!heapGS_gen hlc Σ} : ectx_coirisG_g
   state_empty := colang.state_empty;
   own_state := colang.own_state;
   own_state_empty := colang.own_state_empty;
-  own_state_update := colang.base_own_state_update;
+  own_state_update := colang.own_state_update;
 }.
 Solve Obligations with auto.

@@ -13,7 +13,7 @@ synopsis: "Completeness of the Iris separation logic framework"
 depends: [
   "rocq-core" { (= "9.1.0") }
   "rocq-stdlib"
-  "rocq-iris" { (= "dev.2026-01-29.0.6cdf1efe") }
+  "rocq-iris" { (= "dev.2026-02-05.0.9815f03b") }
   "rocq-stdpp"
   "rocq-iris-heap-lang"
 ]
